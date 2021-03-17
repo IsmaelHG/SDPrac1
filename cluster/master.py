@@ -11,37 +11,49 @@ from multiprocessing import Process
 import redis
 import requests
 
-WORKERS = {}    # Tupla con ID de cada worker
+WORKERS = {}  # Tupla con ID de cada worker
 WORKER_ID = 0
 JOB_ID = 0
 global CONN
 
 COUNTWORDS = "CountingWords"
 WORDCOUNT = "WordCount"
-
+JOIN = "Join"
 
 # Sube tasca a la cola de redis
 def submit_task(files, type):
     global JOB_ID
     global CONN
 
+    VECTOR_JOBID = {}
     filestr = files[1:-1]
     filestr = filestr.split(",")
 
     # Crea una task en la cola de redis por cada entrada de la invocacion
+    i = 0
     for file in filestr:
         task = {
             'JOBID': JOB_ID,
             'TypeTask': type,
             'fileurl': file
         }
+        VECTOR_JOBID[i] = JOB_ID    # Guardamos id por si es invocacion multiple
         JOB_ID = JOB_ID + 1
+        i = i + 1;
         CONN.rpush('task:queue', json.dumps(task))
 
     # Si es una invocacion multiple
     if len(filestr) > 1:
-        #Llamar a join
-        pass
+        # Submit task de join
+        task = {
+            'JOBID': JOB_ID,
+            'TypeTask': JOIN,
+            'vector': VECTOR_JOBID
+        }
+        CONN.rpush('task:queue', json.dumps(task))
+
+    pass
+
 
 # LLaman a submit task con el tipo de tasca correspondiente
 def submit_countingwords(files):
@@ -50,6 +62,7 @@ def submit_countingwords(files):
 
 def submit_wordcount(files):
     submit_task(files, WORDCOUNT)
+
 
 # Crea un worker e inicia su subproceso correspondiente
 def add_worker():
@@ -65,34 +78,42 @@ def add_worker():
 
     return WORKER_ID
 
+
 # Elimina un worker
 def delete_worker(id_worker):
     global WORKERS
     global WORKER_ID
 
     proc = WORKERS[id_worker]
-    proc.kill()             # Mata su proceso
+    proc.kill()  # Mata su proceso
 
 
 # Devuelve lista con todos los workers creados
 def list_workers():
     return str(WORKERS)
 
+
 # Implementa la logica del tiempo de vida de cada proceso worker
 def start_worker():
     global CONN
     # Solo acabara si se llama a delete worker
     while True:
-        task = CONN.blpop(['task:queue'], 0)            # Coge una task de la cola de Redis
+        task = CONN.blpop(['task:queue'], 0)  # Coge una task de la cola de Redis
         task_json = json.loads(task[1])
-        filestr = requests.get(task_json["fileurl"])    # Captura contenido del fichero de la url (peticion request)
-        type = task_json["TypeTask"]                    # Capturamos el tipo de tarea a ejecutar sobre el fichero
+        type = task_json["TypeTask"]  # Capturamos el tipo de tarea a ejecutar sobre el fichero
 
         # Llamada a las funciones
         if type == WORDCOUNT:
             number = WordCount(filestr)
+            filestr = requests.get(task_json["fileurl"])  # Captura contenido del fichero de la url (peticion request)
+
         elif type == COUNTWORDS:
             number = CountingWords(filestr)
+            filestr = requests.get(task_json["fileurl"])  # Captura contenido del fichero de la url (peticion request)
+
+        elif type == JOIN:
+            vectorsubtasks = requests.get(task_json["vector"])  # Capturamos vector id subprocesos
+            number = join_tasks(vectorsubtasks)
 
         # Pushea el resultado en la cola de redis con referencia al JOBID
         CONN.rpush(task_json["JOBID"], number)
@@ -102,10 +123,14 @@ def start_worker():
 def CountingWords(str):
     return len(str.split())
 
+
 # Cuenta numero de cada palabra del fichero capturadas en str(filestr)
 def WordCount(str):
     return 0
 
+# Une tasks
+def join_tasks(vectorsubtasks):
+    pass
 
 if __name__ == '__main__':
     CONN = redis.Redis()
