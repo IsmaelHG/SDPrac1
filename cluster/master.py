@@ -19,13 +19,55 @@ global CONN
 COUNTWORDS = "CountingWords"
 WORDCOUNT = "WordCount"
 JOIN = "Join"
+# -------------------------------------------------
+# ------------ METODOS API MASTER -----------------
+# -------------------------------------------------
+
+# LLaman a submit task con el tipo de tasca correspondiente
+def submit_countingwords(files):
+    submit_task(files, COUNTWORDS)
+
+def submit_wordcount(files):
+    submit_task(files, WORDCOUNT)
+
+# Crea un worker e inicia su subproceso correspondiente
+def add_worker():
+    global WORKERS
+    global WORKER_ID
+
+    # El proceso del worker ejecutara el metodo start_worker
+    proc = Process(target=start_worker, args=(WORKER_ID,))
+    proc.start()
+    WORKERS[WORKER_ID] = proc
+
+    WORKER_ID += 1
+
+    return WORKER_ID
+
+# Elimina un worker
+def delete_worker(id_worker):
+    global WORKERS
+    global WORKER_ID
+
+    proc = WORKERS[id_worker]
+    proc.kill()  # Mata su proceso
+
+
+# Devuelve lista con todos los workers creados
+def list_workers():
+    return str(WORKERS)
+
+
+# -------------------------------------------------
+# ------------ METODOS INTERNOS -------------------
+# -------------------------------------------------
 
 # Sube tasca a la cola de redis
 def submit_task(files, type):
     global JOB_ID
     global CONN
 
-    VECTOR_JOBID = {}
+    VECTOR_JOBID = {} # Vector para saber los identificadores de subprocesos pertenecientes a una misma invocacion
     filestr = files[1:-1]
     filestr = filestr.split(",")
 
@@ -53,45 +95,6 @@ def submit_task(files, type):
         CONN.rpush('task:queue', json.dumps(task))
 
     pass
-
-
-# LLaman a submit task con el tipo de tasca correspondiente
-def submit_countingwords(files):
-    submit_task(files, COUNTWORDS)
-
-
-def submit_wordcount(files):
-    submit_task(files, WORDCOUNT)
-
-
-# Crea un worker e inicia su subproceso correspondiente
-def add_worker():
-    global WORKERS
-    global WORKER_ID
-
-    # El proceso del worker ejecutara el metodo start_worker
-    proc = Process(target=start_worker, args=(WORKER_ID,))
-    proc.start()
-    WORKERS[WORKER_ID] = proc
-
-    WORKER_ID += 1
-
-    return WORKER_ID
-
-
-# Elimina un worker
-def delete_worker(id_worker):
-    global WORKERS
-    global WORKER_ID
-
-    proc = WORKERS[id_worker]
-    proc.kill()  # Mata su proceso
-
-
-# Devuelve lista con todos los workers creados
-def list_workers():
-    return str(WORKERS)
-
 
 # Implementa la logica del tiempo de vida de cada proceso worker
 def start_worker():
