@@ -1,3 +1,8 @@
+# ------------------------
+# SISTEMAS DISTRIBUIDOS
+# Gabriel Garcia, Ismael El-Fellah
+# Fichero que expone la utilidad de invocar a las funciones de la api master a traves de los parametros de entrada
+# -------------------------
 import xmlrpc.client
 
 if __name__ == '__main__':
