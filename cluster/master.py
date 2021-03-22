@@ -107,18 +107,19 @@ def start_worker():
 
         # Llamada a las funciones
         if type == WORDCOUNT:
-            number = WordCount(filestr)
             filestr = requests.get(task_json["fileurl"])  # Captura contenido del fichero de la url (peticion request)
+            number = WordCount(filestr)
 
         elif type == COUNTWORDS:
-            number = CountingWords(filestr)
             filestr = requests.get(task_json["fileurl"])  # Captura contenido del fichero de la url (peticion request)
+            number = CountingWords(filestr)
 
+        # Si el proceso resulta encargado de joinear varias tareas de una invocacion multiple
         elif type == JOIN:
             vectorsubtasks = requests.get(task_json["vector"])  # Capturamos vector id subprocesos
             number = join_tasks(vectorsubtasks)
 
-        # Pushea el resultado en la cola de redis con referencia al JOBID
+        # Pushea el resultado de cualquiera de las 3 posibles operaciones en la cola de redis con referencia al JOBID
         CONN.rpush(task_json["JOBID"], number)
 
 
