@@ -10,6 +10,7 @@ import logging
 from multiprocessing import Process
 import redis
 import requests
+from collections import Counter
 
 WORKERS = {}  # Tupla con ID de cada worker
 WORKER_ID = 0
@@ -25,10 +26,10 @@ JOIN = "Join"
 
 # LLaman a submit task con el tipo de tasca correspondiente
 def submit_countingwords(files):
-    submit_task(files, COUNTWORDS)
+    return submit_task(files, COUNTWORDS)
 
 def submit_wordcount(files):
-    submit_task(files, WORDCOUNT)
+    return submit_task(files, WORDCOUNT)
 
 # Crea un worker e inicia su subproceso correspondiente
 def add_worker():
@@ -90,11 +91,16 @@ def submit_task(files, type):
         task = {
             'JOBID': JOB_ID,
             'TypeTask': JOIN,
+            'Type': type,
             'vector': VECTOR_JOBID
         }
         CONN.rpush('task:queue', json.dumps(task))
+        JOB_ID = JOB_ID + 1
 
-    pass
+    # Esperara a que finalizen las tascas para retornar resultado al cliente
+    resultat = CONN.blpop(JOB_ID, 0)
+
+    return str(resultat)
 
 # Implementa la logica del tiempo de vida de cada proceso worker
 def start_worker():
@@ -116,8 +122,10 @@ def start_worker():
 
         # Si el proceso resulta encargado de joinear varias tareas de una invocacion multiple
         elif type == JOIN:
-            vectorsubtasks = requests.get(task_json["vector"])  # Capturamos vector id subprocesos
-            number = join_tasks(vectorsubtasks)
+            vectorsubtasks = task_json["vector"]  # Capturamos vector id subprocesos
+            type2 = task_json["type"]
+            # number = join_tasks(vectorsubtasks,type2)
+            number = join_tasks(task_json)
 
         # Pushea el resultado de cualquiera de las 3 posibles operaciones en la cola de redis con referencia al JOBID
         CONN.rpush(task_json["JOBID"], number)
@@ -130,11 +138,28 @@ def CountingWords(str):
 
 # Cuenta numero de cada palabra del fichero capturadas en str(filestr)
 def WordCount(str):
-    return 0
+    # Counter() recorre el string y construye un diccionario ordenado con el numero de ocurrencias de cada palabra
+    most_common = [item for item in Counter(str).most_common()]
+    return str(most_common)
 
 # Une tasks
-def join_tasks(vectorsubtasks):
-    pass
+def join_tasks(task_json):
+    global CONN
+    nwords = 0
+    vectorsubtasks = task_json["vector"]
+    diccionario = {}
+    # Si tenemos que joinear COUNTWORDS
+    if type == COUNTWORDS:
+        # Recorremos vectorsubtasks sumando el resultado de cada tasca de la cola de redis con indice JOBID
+        for i in vectorsubtasks:
+            nwords += int(CONN.blpop(i, 0))  # En caso de no finalizar se bloquea hasta que no llegue el resultado
+        CONN.rpush(task_json["JOBID"], nwords)  # Pusheamos resultado final
+    # Si es WORDCOUNT
+    elif type == WORDCOUNT:
+        for i in vectorsubtasks:
+            # Counter() une sumando los diccionarios
+            diccionario += Counter(json.loads(CONN.blpop(i, 0)))
+        CONN.rpush(task_json["JOBID"], str(diccionario))
 
 if __name__ == '__main__':
     CONN = redis.Redis()
