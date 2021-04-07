@@ -12,16 +12,32 @@
 import xmlrpc.client
 import click
 
-@click.command()
-@click.option('--wcreate', default=1, help='Crea un worker')
+global proxy
 
-def wcreate(wcreate):
-    if wcreate !
-    pass
+
+@click.command()
+@click.option('--wcreate', 'worker_create_flag', default=False, flag_value='wcreate', help='Create a worker')
+@click.option('--wlist', 'worker_list_flag', default=False, flag_value='wlist', help='List all workers')
+@click.option('--wdelete', default=-1, help='Delete a worker')
+@click.option('--runcw', default="", help='Call CountingWords')
+@click.option('--runwc', default="", help='Call WordCount')
+def cli(worker_create_flag, worker_list_flag, wdelete, runcw, runwc):
+    global proxy
+    if worker_create_flag:
+        print("Sucessfully createad worker with ID: " + str(proxy.add_worker()))
+    if worker_list_flag:
+        print(str(proxy.list_workers()))
+    if wdelete != -1:
+        proxy.delete_worker(wdelete)
+    if runcw != "":
+        print(proxy.submit_countingwords(runcw))
+    if runwc != "":
+        print(proxy.submit_wordcount(runwc))
 
 
 if __name__ == '__main__':
-    proxy = xmlrpc.client.ServerProxy('http://localhost:9000')
-    print(proxy.submit_countingwords("[http://localhost:8000/fitxer1, http://localhost:8000/fitxer2]"))
+    global proxy
+    proxy = xmlrpc.client.ServerProxy('http://localhost:9000', allow_none=True)
+    cli()
 
-
+    # print(proxy.submit_countingwords("[http://localhost:8000/fitxer1, http://localhost:8000/fitxer2]"))

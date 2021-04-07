@@ -11,6 +11,8 @@ from multiprocessing import Process
 import redis
 import requests
 from collections import Counter
+import multiprocessing as mp
+mp.set_start_method('fork')
 
 WORKERS = {}  # Tupla con ID de cada worker
 WORKER_ID = 0
@@ -20,6 +22,8 @@ global CONN
 COUNTWORDS = "CountingWords"
 WORDCOUNT = "WordCount"
 JOIN = "Join"
+
+
 # -------------------------------------------------
 # ------------ METODOS API MASTER -----------------
 # -------------------------------------------------
@@ -28,8 +32,10 @@ JOIN = "Join"
 def submit_countingwords(files):
     return submit_task(files, COUNTWORDS)
 
+
 def submit_wordcount(files):
     return submit_task(files, WORDCOUNT)
+
 
 # Crea un worker e inicia su subproceso correspondiente
 def add_worker():
@@ -37,13 +43,14 @@ def add_worker():
     global WORKER_ID
 
     # El proceso del worker ejecutara el metodo start_worker
-    proc = Process(target=start_worker, args=(WORKER_ID,))
+    proc = Process(target=start_worker, args=(CONN,))
     proc.start()
     WORKERS[WORKER_ID] = proc
 
     WORKER_ID += 1
 
-    return WORKER_ID
+    return str(WORKER_ID)
+
 
 # Elimina un worker
 def delete_worker(id_worker):
@@ -52,6 +59,7 @@ def delete_worker(id_worker):
 
     proc = WORKERS[id_worker]
     proc.kill()  # Mata su proceso
+    WORKERS.pop(id_worker)
 
 
 # Devuelve lista con todos los workers creados
@@ -68,7 +76,7 @@ def submit_task(files, type):
     global JOB_ID
     global CONN
 
-    VECTOR_JOBID = {} # Vector para saber los identificadores de subprocesos pertenecientes a una misma invocacion
+    VECTOR_JOBID = {}  # Vector para saber los identificadores de subprocesos pertenecientes a una misma invocacion
     filestr = files[1:-1]
     filestr = filestr.split(",")
 
@@ -80,7 +88,7 @@ def submit_task(files, type):
             'TypeTask': type,
             'fileurl': file
         }
-        VECTOR_JOBID[i] = JOB_ID    # Guardamos id por si es invocacion multiple
+        VECTOR_JOBID[i] = JOB_ID  # Guardamos id por si es invocacion multiple
         JOB_ID = JOB_ID + 1
         i = i + 1;
         CONN.rpush('task:queue', json.dumps(task))
@@ -102,9 +110,11 @@ def submit_task(files, type):
 
     return str(resultat)
 
+
 # Implementa la logica del tiempo de vida de cada proceso worker
-def start_worker():
+def start_worker(redis_conn):
     global CONN
+    CONN = redis_conn
     # Solo acabara si se llama a delete worker
     while True:
         task = CONN.blpop(['task:queue'], 0)  # Coge una task de la cola de Redis
@@ -113,11 +123,12 @@ def start_worker():
 
         # Llamada a las funciones
         if type == WORDCOUNT:
-            filestr = requests.get(task_json["fileurl"])  # Captura contenido del fichero de la url (peticion request)
+            filestr = requests.get(task_json["fileurl"]).content  # Captura contenido del fichero de la url (peticion request)
             number = WordCount(filestr)
 
         elif type == COUNTWORDS:
-            filestr = requests.get(task_json["fileurl"])  # Captura contenido del fichero de la url (peticion request)
+            filestr = requests.get(task_json["fileurl"]).content   # Captura contenido del fichero de la url (peticion request)
+            print(filestr)
             number = CountingWords(filestr)
 
         # Si el proceso resulta encargado de joinear varias tareas de una invocacion multiple
@@ -142,6 +153,7 @@ def WordCount(str):
     most_common = [item for item in Counter(str).most_common()]
     return str(most_common)
 
+
 # Une tasks
 def join_tasks(task_json):
     global CONN
@@ -161,12 +173,13 @@ def join_tasks(task_json):
             diccionario += Counter(json.loads(CONN.blpop(i, 0)))
         CONN.rpush(task_json["JOBID"], str(diccionario))
 
+
 if __name__ == '__main__':
     CONN = redis.Redis()
 
     logging.basicConfig(level=logging.INFO)
 
-    server = SimpleXMLRPCServer(('localhost', 9000))
+    server = SimpleXMLRPCServer(('localhost', 9000), allow_none=True)
 
     server.register_function(submit_countingwords, "submit_countingwords")
     server.register_function(submit_wordcount, "submit_wordcount")
