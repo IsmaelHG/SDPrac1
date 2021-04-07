@@ -1,8 +1,8 @@
-# ------------------------
+# ---------------------------------------------------------------------------------------------------------------------
 # SISTEMAS DISTRIBUIDOS
 # Gabriel Garcia, Ismael El-Fellah
 # Fichero que expone la api MASTER con la que podra trabajar  el cliente y la logica de asignacion de tareas a workers
-# -------------------------
+# ---------------------------------------------------------------------------------------------------------------------
 
 import json
 from xmlrpc.server import SimpleXMLRPCServer
