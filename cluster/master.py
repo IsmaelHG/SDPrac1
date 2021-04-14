@@ -106,7 +106,7 @@ def submit_task(files, type):
         JOB_ID = JOB_ID + 1
 
     # Esperara a que finalizen las tascas para retornar resultado al cliente
-    resultat = CONN.blpop(JOB_ID, 0)
+    resultat = CONN.blpop(JOB_ID-1, 0)
 
     return str(resultat)
 
@@ -125,10 +125,10 @@ def start_worker(redis_conn):
         if type == WORDCOUNT:
             filestr = requests.get(task_json["fileurl"]).content  # Captura contenido del fichero de la url (peticion request)
             number = WordCount(filestr)
+            number = str(number).strip('[]')
 
         elif type == COUNTWORDS:
             filestr = requests.get(task_json["fileurl"]).content   # Captura contenido del fichero de la url (peticion request)
-            print(filestr)
             number = CountingWords(filestr)
 
         # Si el proceso resulta encargado de joinear varias tareas de una invocacion multiple
@@ -150,8 +150,9 @@ def CountingWords(str):
 # Cuenta numero de cada palabra del fichero capturadas en str(filestr)
 def WordCount(str):
     # Counter() recorre el string y construye un diccionario ordenado con el numero de ocurrencias de cada palabra
-    most_common = [item for item in Counter(str).most_common()]
-    return str(most_common)
+    filestr = str.decode("utf-8")
+    most_common = [item for item in Counter(filestr).most_common()]
+    return most_common
 
 
 # Une tasks
