@@ -14,7 +14,7 @@ import click
 
 global proxy
 
-
+# Definicion parametros entrada y funcion cli() para gestionar las diferentes RPC sobre el master
 @click.command()
 @click.option('--wcreate', 'worker_create_flag', default=False, flag_value='wcreate', help='Create a worker')
 @click.option('--wlist', 'worker_list_flag', default=False, flag_value='wlist', help='List all workers')
@@ -35,6 +35,7 @@ def cli(worker_create_flag, worker_list_flag, wdelete, runcw, runwc):
         print(proxy.submit_wordcount(runwc))
 
 
+# El main solo iniciara la conexion xmlrpc y llamara a la funcion que gestionara los parametros
 if __name__ == '__main__':
     global proxy
     proxy = xmlrpc.client.ServerProxy('http://localhost:9000', allow_none=True)
