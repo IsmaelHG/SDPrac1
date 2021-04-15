@@ -144,15 +144,22 @@ def start_worker(redis_conn):
 
 # Cuenta numero de palabras del fichero capturadas en str(filestr)
 def CountingWords(str):
-    return len(str.split())
+    a = len(str.split())
+    return a
 
 
 # Cuenta numero de cada palabra del fichero capturadas en str(filestr)
 def WordCount(str):
-    # Counter() recorre el string y construye un diccionario ordenado con el numero de ocurrencias de cada palabra
+    # Recorre el string y construye un diccionario con el numero de ocurrencias de cada palabra
     filestr = str.decode("utf-8")
-    most_common = [item for item in Counter(filestr).most_common()]
-    return most_common
+    counts = dict()
+    words = str.split()
+    for word in words:
+        if word in counts:
+            counts[word] += 1
+        else:
+            counts[word] = 1
+    return counts
 
 
 # Une tasks
