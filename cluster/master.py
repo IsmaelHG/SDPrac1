@@ -185,11 +185,13 @@ def join_tasks(task_json):
         print("WordCount")
         for i in vectorsubtasks:
             # Counter() une sumando los diccionarios
-            # El redis retorna una tupla, donde la segunda posicion contiene el resultado de la tasca
+            # El redis retorna una tupla, donde la segunda posicion contiene el resultado de la tasca en forma de string
             redistupla = CONN.blpop(i, 0)[1]
+            # Con el ast.literal_eval convertimos el string de la 1a posicion de la tupla a diccionario para ir sumando
             diccionario = mergsum(ast.literal_eval(redistupla.decode('utf-8')), diccionario)
         return str(diccionario)
 
+# Suma dos diccionarios
 def mergsum(dictA, dictB):
     for key in dictB:
         if key in dictA:
