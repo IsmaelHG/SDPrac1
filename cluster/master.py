@@ -3,7 +3,7 @@
 # Gabriel Garcia, Ismael El-Fellah
 # Fichero que expone la api MASTER con la que podra trabajar  el cliente y la logica de asignacion de tareas a workers
 # ---------------------------------------------------------------------------------------------------------------------
-
+import ast
 import json
 from xmlrpc.server import SimpleXMLRPCServer
 import logging
@@ -12,6 +12,8 @@ import redis
 import requests
 from collections import Counter
 import multiprocessing as mp
+from mergedict import MergeDict
+
 mp.set_start_method('fork')
 
 WORKERS = {}  # Tupla con ID de cada worker
@@ -99,14 +101,14 @@ def submit_task(files, type):
         task = {
             'JOBID': JOB_ID,
             'TypeTask': JOIN,
-            'Type': type,
+            'Type': type,  # Type contendra el TypeTask de las tascas a hacer "join"
             'vector': VECTOR_JOBID
         }
         CONN.rpush('task:queue', json.dumps(task))
         JOB_ID = JOB_ID + 1
 
     # Esperara a que finalizen las tascas para retornar resultado al cliente
-    resultat = CONN.blpop(JOB_ID-1, 0)
+    resultat = CONN.blpop(JOB_ID - 1, 0)
 
     return str(resultat)
 
@@ -123,18 +125,18 @@ def start_worker(redis_conn):
 
         # Llamada a las funciones
         if type == WORDCOUNT:
-            filestr = requests.get(task_json["fileurl"]).content  # Captura contenido del fichero de la url (peticion request)
+            filestr = requests.get(
+                task_json["fileurl"]).content  # Captura contenido del fichero de la url (peticion request)
             number = WordCount(filestr)
             number = str(number).strip('[]')
 
         elif type == COUNTWORDS:
-            filestr = requests.get(task_json["fileurl"]).content   # Captura contenido del fichero de la url (peticion request)
+            filestr = requests.get(
+                task_json["fileurl"]).content  # Captura contenido del fichero de la url (peticion request)
             number = CountingWords(filestr)
 
         # Si el proceso resulta encargado de joinear varias tareas de una invocacion multiple
         elif type == JOIN:
-            vectorsubtasks = task_json["vector"]  # Capturamos vector id subprocesos
-            type2 = task_json["type"]
             # number = join_tasks(vectorsubtasks,type2)
             number = join_tasks(task_json)
 
@@ -151,7 +153,6 @@ def CountingWords(str):
 # Cuenta numero de cada palabra del fichero capturadas en str(filestr)
 def WordCount(str):
     # Recorre el string y construye un diccionario con el numero de ocurrencias de cada palabra
-    filestr = str.decode("utf-8")
     counts = dict()
     words = str.split()
     for word in words:
@@ -164,23 +165,39 @@ def WordCount(str):
 
 # Une tasks
 def join_tasks(task_json):
-    global CONN
     nwords = 0
     vectorsubtasks = task_json["vector"]
     diccionario = {}
+    type = task_json["Type"]
     # Si tenemos que joinear COUNTWORDS
+    print("Nos metemos en los ifs")
     if type == COUNTWORDS:
+        print("CountWords")
         # Recorremos vectorsubtasks sumando el resultado de cada tasca de la cola de redis con indice JOBID
+        print("Vector subtasks es: " + str(vectorsubtasks))
         for i in vectorsubtasks:
-            nwords += int(CONN.blpop(i, 0))  # En caso de no finalizar se bloquea hasta que no llegue el resultado
-        CONN.rpush(task_json["JOBID"], nwords)  # Pusheamos resultado final
+            # El redis retorna una tupla, donde la segunda posicion contiene el resultado de la tasca
+            nwords += int(CONN.blpop(i, 0)[1])  # En caso de no finalizar se bloquea hasta que no llegue el resultado
+        print(nwords)
+        return nwords  # Pusheamos resultado final
     # Si es WORDCOUNT
     elif type == WORDCOUNT:
+        print("WordCount")
         for i in vectorsubtasks:
             # Counter() une sumando los diccionarios
-            diccionario += Counter(json.loads(CONN.blpop(i, 0)))
-        CONN.rpush(task_json["JOBID"], str(diccionario))
+            # El redis retorna una tupla, donde la segunda posicion contiene el resultado de la tasca
+            redistupla = CONN.blpop(i, 0)[1]
+            diccionario = mergsum(ast.literal_eval(redistupla.decode('utf-8')), diccionario)
+        return str(diccionario)
 
+def mergsum(dictA, dictB):
+    for key in dictB:
+        if key in dictA:
+            dictB[key] = dictB[key] + dictA[key]
+        else:
+            pass
+    res = dictA | dictB
+    return res
 
 if __name__ == '__main__':
     CONN = redis.Redis()
