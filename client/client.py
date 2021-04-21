@@ -40,5 +40,3 @@ if __name__ == '__main__':
     global proxy
     proxy = xmlrpc.client.ServerProxy('http://localhost:9000', allow_none=True)
     cli()
-
-    # print(proxy.submit_countingwords("[http://localhost:8000/fitxer1, http://localhost:8000/fitxer2]"))
