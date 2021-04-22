@@ -10,9 +10,7 @@ import logging
 from multiprocessing import Process
 import redis
 import requests
-from collections import Counter
 import multiprocessing as mp
-from mergedict import MergeDict
 import secrets
 
 mp.set_start_method('fork')
@@ -84,7 +82,7 @@ def submit_task(files, type):
     # Crea una task en la cola de redis por cada entrada de la invocacion
     i = 0
     for file in filestr:
-        job_id = secrets.token_urlsafe(8)
+        job_id = secrets.token_urlsafe(8)   # El jobid se generara aleatoriamente para evitar conflicos en la cola redis
         task = {
             'JOBID': job_id,
             'TypeTask': type,
