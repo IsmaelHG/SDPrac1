@@ -30,3 +30,5 @@ Ejemplo conteo palabras en ingles:
 El resultado debería ser 466550
 
 client.py --runcw [https://raw.githubusercontent.com/dwyl/english-words/master/words.txt]
+
+ Sistemes distribuits 
