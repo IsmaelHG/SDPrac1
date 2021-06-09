@@ -4,7 +4,15 @@ Practica 1 de Sistemas Distribuidos
 
 Ismael y Gabriel
 
+```Las librerías necesarias se pueden instalar mediante: pip install -r requirements.txt```
+
+```Es necesario un servidor redis accesible desde el localhost con el puerto 6379```
+
+## Ejecución
+
 El master se ejecuta sin parametros
+
+La ejecución del cliente funciona de la siguientes maneras
 
 Create Worker:
 
