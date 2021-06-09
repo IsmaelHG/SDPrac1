@@ -10,9 +10,9 @@ Ismael y Gabriel
 
 ## Ejecución
 
-El master se ejecuta sin parametros
+El master se ejecuta sin parametros (master.py en la carpeta cluster)
 
-La ejecución del cliente funciona de la siguientes maneras
+La ejecución del cliente funciona de la siguientes maneras (client.py en la carpeta client)
 
 Create Worker:
 
